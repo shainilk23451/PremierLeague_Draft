@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #09090b;
+    color: #ffffff;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .slot-btn {
+    @apply w-10 h-10 rounded-full border-2 border-neutral-400 flex items-center justify-center text-sm font-semibold transition-all duration-150 select-none;
+  }
+  .slot-btn.empty {
+    @apply bg-cream text-neutral-400 cursor-default;
+  }
+  .slot-btn.filled {
+    @apply bg-neutral-900 text-white border-neutral-900 cursor-pointer;
+  }
+  .slot-btn.valid {
+    @apply bg-cream border-neutral-900 text-neutral-900 cursor-pointer scale-110 ring-2 ring-neutral-900 ring-offset-1;
+  }
+  .slot-btn.selected {
+    @apply bg-neutral-900 text-white border-neutral-900 scale-110 ring-2 ring-pl-yellow ring-offset-1;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+
+/* Subtle pitch lines */
+.pitch-bg {
+  background-color: #1e5c2e;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp 0.3s ease both; }
+
+@keyframes pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.pop { animation: pop 0.25s ease; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in { animation: slideIn 0.25s ease both; }

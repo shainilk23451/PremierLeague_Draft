@@ -14,7 +14,7 @@ function posColor(pos) {
   return 'bg-red-500/20 text-red-400'
 }
 
-function PlayerRow({ player, isSelected, onSelect, teamCS }) {
+function PlayerRow({ player, isSelected, onSelect }) {
   return (
     <button
       onClick={() => onSelect(player)}
@@ -54,7 +54,7 @@ function PlayerRow({ player, isSelected, onSelect, teamCS }) {
             )}
             <div className="text-center">
               <div className={`font-bold text-sm ${isSelected ? 'text-zinc-950' : 'text-white'}`}>
-                {player.position === 'GK' ? (player.cleanSheets ?? '–') : (teamCS ?? '–')}
+                {player.cleanSheets ?? '–'}
               </div>
               <div className="text-[9px] uppercase tracking-wide">CS</div>
             </div>
@@ -87,12 +87,6 @@ export default function DraftPhase({
     if (!currentTeam) return []
     return getAvailablePlayers(currentTeam, squad)
   }, [currentTeam, squad])
-
-  const teamCS = useMemo(() => {
-    if (!currentTeam) return null
-    const gk = currentTeam.players.find(p => p.position === 'GK')
-    return gk?.cleanSheets ?? null
-  }, [currentTeam])
 
   const sortedPlayers = useMemo(() => {
     if (!availablePlayers.length) return []
@@ -214,7 +208,6 @@ export default function DraftPhase({
                   isSelected={selectedPlayer?.id === player.id}
                   onSelect={onSelectPlayer}
                   sortKey={sortKey}
-                  teamCS={teamCS}
                 />
               ))}
             </div>

@@ -44,18 +44,25 @@ export function getValidSlots(player, squad) {
   return [...starterSlots.filter(empty), ...BENCH_OUTFIELD_SLOTS.filter(empty)]
 }
 
-// Pick a random team not in usedIds, weighted by team weight
+// Pick a random team not in usedIds, weighted by team weight.
+// Prioritises clubs not yet seen this draft to maximise variety.
 export function pickRandomTeam(usedIds = []) {
   const available = TEAMS.filter(t => !usedIds.includes(t.id))
   if (available.length === 0) return null
 
-  const totalWeight = available.reduce((s, t) => s + t.weight, 0)
+  // Derive which club names have already appeared
+  const usedClubs = new Set(TEAMS.filter(t => usedIds.includes(t.id)).map(t => t.name))
+  // Prefer clubs not yet seen; fall back to all available if none fresh
+  const pool = available.filter(t => !usedClubs.has(t.name))
+  const candidates = pool.length > 0 ? pool : available
+
+  const totalWeight = candidates.reduce((s, t) => s + t.weight, 0)
   let r = Math.random() * totalWeight
-  for (const team of available) {
+  for (const team of candidates) {
     r -= team.weight
     if (r <= 0) return team
   }
-  return available[available.length - 1]
+  return candidates[candidates.length - 1]
 }
 
 // Filter players that still have valid slots and haven't already been drafted by name

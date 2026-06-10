@@ -51,12 +51,15 @@ export function calculateTeamRating(squad) {
   const midAvg = mids.length ? mids.reduce((s, p) => s + p.rating, 0) / mids.length : 70
   const fwdAvg = fwds.length ? fwds.reduce((s, p) => s + p.rating, 0) / fwds.length : 70
 
-  const attackRating = fwdAvg * 0.55 + midAvg * 0.35 + gkRating * 0.10
-  const defenseRating = defAvg * 0.65 + gkRating * 0.30 + midAvg * 0.05
+  // Attack: forwards and midfielders drive goals; GK irrelevant
+  const attackRating = fwdAvg * 0.60 + midAvg * 0.35 + defAvg * 0.05
+  // Defense: GK and defensive line are the cornerstones; mids contribute pressing
+  const defenseRating = defAvg * 0.50 + gkRating * 0.40 + midAvg * 0.10
 
   const bench = squad.slice(11).filter(Boolean)
   const benchAvg = bench.length ? bench.reduce((s, p) => s + p.rating, 0) / bench.length : 70
-  const depthBonus = (benchAvg - 70) * 0.05
+  // Depth bonus: quality rotation squad provides resilience over 38 games
+  const depthBonus = Math.max(0, (benchAvg - 72) * 0.10)
 
   return {
     attackRating: Math.min(99, attackRating + depthBonus),
@@ -65,17 +68,26 @@ export function calculateTeamRating(squad) {
   }
 }
 
-// Expected goals — realistic PL range (0.5–2.8 per team per game)
-// Base 1.3, scaled by attack-vs-defense differential
+// Expected goals — realistic PL range (~0.4–3.0 per team per game)
+// Base 1.25 (league average), scaled by attack-vs-defense differential
 function xG(attackRating, opponentDefenseRating) {
   const differential = norm(attackRating) - norm(opponentDefenseRating)
-  return Math.max(0.5, Math.min(2.8, 1.3 + differential * 1.7))
+  return Math.max(0.4, Math.min(3.0, 1.25 + differential * 1.8))
 }
 
-function simulateMatch(ourAttack, ourDefense, theirAttack, theirDefense) {
-  const ourXG = xG(ourAttack, theirDefense)
-  const theirXG = xG(theirAttack, ourDefense)
-  return { ourGoals: poisson(ourXG), theirGoals: poisson(theirXG) }
+// Per-match form/tactical noise: ±20% variance on xG
+// Reflects injuries, tactics, motivation, referee decisions etc.
+function formFactor() {
+  return 0.80 + Math.random() * 0.40
+}
+
+function simulateMatch(homeAttack, homeDefense, awayAttack, awayDefense) {
+  const homeXG = xG(homeAttack, awayDefense) * formFactor()
+  const awayXG = xG(awayAttack, homeDefense) * formFactor()
+  return {
+    ourGoals: poisson(Math.max(0.3, homeXG)),
+    theirGoals: poisson(Math.max(0.3, awayXG)),
+  }
 }
 
 function getResult(gf, ga) {
@@ -108,9 +120,9 @@ export function simulateSeason(squad) {
       const home = allTeams[i]
       const away = allTeams[j]
 
-      // +2 home attack advantage
+      // +4 home attack advantage (reflects crowd, familiarity, no travel fatigue)
       const { ourGoals: hg, theirGoals: ag } = simulateMatch(
-        home.attackRating + 2, home.defenseRating,
+        home.attackRating + 4, home.defenseRating,
         away.attackRating, away.defenseRating,
       )
 

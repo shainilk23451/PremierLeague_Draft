@@ -14,7 +14,7 @@ function posColor(pos) {
   return 'bg-red-500/20 text-red-400'
 }
 
-function PlayerRow({ player, isSelected, onSelect }) {
+function PlayerRow({ player, isSelected, onSelect, hideStats }) {
   return (
     <button
       onClick={() => onSelect(player)}
@@ -37,6 +37,11 @@ function PlayerRow({ player, isSelected, onSelect }) {
           )}
         </div>
       </div>
+      {hideStats ? (
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${isSelected ? 'text-zinc-700' : 'text-zinc-600'}`}>
+          Stats hidden
+        </span>
+      ) : (
       <div className={`flex gap-4 text-right text-xs ${isSelected ? 'text-zinc-700' : 'text-zinc-400'}`}>
         {player.position === 'GK' || player.position === 'DEF' ? (
           <>
@@ -72,6 +77,7 @@ function PlayerRow({ player, isSelected, onSelect }) {
           </>
         )}
       </div>
+      )}
     </button>
   )
 }
@@ -81,7 +87,7 @@ export default function DraftPhase({
   skipsLeft, selectedPlayer, sortKey, onSortChange,
   onSkip, onSelectPlayer, onPlacePlayer, onLiftPlayer,
   swapFromSlot, onSwapSelect,
-  onSimulate, isSquadFull,
+  onSimulate, isSquadFull, hideStats,
 }) {
   const availablePlayers = useMemo(() => {
     if (!currentTeam) return []
@@ -90,13 +96,17 @@ export default function DraftPhase({
 
   const sortedPlayers = useMemo(() => {
     if (!availablePlayers.length) return []
+    if (hideStats) {
+      // Blind drafting: neutral alphabetical order so ranking isn't leaked
+      return [...availablePlayers].sort((a, b) => a.name.localeCompare(b.name))
+    }
     return [...availablePlayers].sort((a, b) => {
       if (sortKey === 'goals') return b.goals - a.goals
       if (sortKey === 'assists') return b.assists - a.assists
       if (sortKey === 'cs') return (b.cleanSheets ?? 0) - (a.cleanSheets ?? 0)
       return b.rating - a.rating
     })
-  }, [availablePlayers, sortKey])
+  }, [availablePlayers, sortKey, hideStats])
 
   const SORT_OPTS = [
     { key: 'goals', label: 'Goals' },
@@ -155,24 +165,30 @@ export default function DraftPhase({
         </div>
 
         {/* Sort buttons */}
-        <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900 flex gap-1.5">
-          <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-500 self-center mr-1">
-            Sort
-          </span>
-          {SORT_OPTS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => onSortChange(key)}
-              className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
-                sortKey === key
-                  ? 'bg-pl-yellow text-zinc-950 border-pl-yellow'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {hideStats ? (
+          <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900 text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-600">
+            Elite mode · draft on reputation alone
+          </div>
+        ) : (
+          <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900 flex gap-1.5">
+            <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-500 self-center mr-1">
+              Sort
+            </span>
+            {SORT_OPTS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => onSortChange(key)}
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                  sortKey === key
+                    ? 'bg-pl-yellow text-zinc-950 border-pl-yellow'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Player list */}
         <div className="flex-1 overflow-y-auto bg-zinc-950">
@@ -207,7 +223,7 @@ export default function DraftPhase({
                   player={player}
                   isSelected={selectedPlayer?.id === player.id}
                   onSelect={onSelectPlayer}
-                  sortKey={sortKey}
+                  hideStats={hideStats}
                 />
               ))}
             </div>

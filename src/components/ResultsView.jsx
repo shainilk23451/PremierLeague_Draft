@@ -1,5 +1,98 @@
-import { getSeasonVerdict } from '../utils/simulation.js'
+import { useState } from 'react'
+import { getSeasonVerdict, DIFFICULTIES } from '../utils/simulation.js'
 import { SLOT_LABELS } from '../utils/draft.js'
+
+// Render a shareable square score card to a canvas and return it as a PNG blob.
+function drawScoreCard(verdict, ourStats, squad, difficulty) {
+  const W = 1080, H = 1080
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+
+  ctx.fillStyle = '#09090b'
+  ctx.fillRect(0, 0, W, H)
+
+  // Header
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#ffffff'
+  ctx.font = '900 56px Arial'
+  ctx.fillText('PL', W / 2 - 60, 110)
+  ctx.fillStyle = '#e8fa23'
+  ctx.fillText('DRAFT', W / 2 + 60, 110)
+
+  ctx.fillStyle = '#52525b'
+  ctx.font = 'bold 22px Arial'
+  ctx.fillText((DIFFICULTIES[difficulty]?.label ?? 'Normal').toUpperCase() + ' DIFFICULTY', W / 2, 160)
+
+  // Verdict
+  ctx.font = '120px Arial'
+  ctx.fillText(verdict.emoji || '', W / 2, 320)
+
+  ctx.fillStyle = '#e8fa23'
+  ctx.font = '900 64px Arial'
+  ctx.fillText(verdict.tier || '', W / 2, 410)
+
+  if (ourStats) {
+    ctx.fillStyle = '#a1a1aa'
+    ctx.font = 'bold 30px Arial'
+    ctx.fillText(`Finished ${ourStats.position}${ordinal(ourStats.position)}`, W / 2, 470)
+
+    // Stat strip
+    const stats = [
+      [`${ourStats.pts}`, 'PTS'],
+      [`${ourStats.won}-${ourStats.drawn}-${ourStats.lost}`, 'W-D-L'],
+      [`${ourStats.gd > 0 ? '+' : ''}${ourStats.gd}`, 'GD'],
+    ]
+    const colW = W / stats.length
+    stats.forEach(([val, lbl], i) => {
+      const x = colW * i + colW / 2
+      ctx.fillStyle = '#ffffff'
+      ctx.font = '900 52px Arial'
+      ctx.fillText(val, x, 580)
+      ctx.fillStyle = '#52525b'
+      ctx.font = 'bold 22px Arial'
+      ctx.fillText(lbl, x, 615)
+    })
+  }
+
+  // Starting XI
+  ctx.strokeStyle = '#27272a'
+  ctx.beginPath()
+  ctx.moveTo(80, 655)
+  ctx.lineTo(W - 80, 655)
+  ctx.stroke()
+
+  const xi = squad.filter(Boolean).slice(0, 11)
+  ctx.textAlign = 'left'
+  const startY = 700
+  const lineH = 33
+  xi.forEach((p, i) => {
+    const col = i < 6 ? 0 : 1
+    const row = i < 6 ? i : i - 6
+    const x = col === 0 ? 90 : W / 2 + 20
+    const y = startY + row * lineH
+    ctx.fillStyle = '#71717a'
+    ctx.font = 'bold 18px Arial'
+    ctx.fillText(SLOT_LABELS[i], x, y)
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 22px Arial'
+    ctx.fillText(p.name, x + 55, y)
+  })
+
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#52525b'
+  ctx.font = 'bold 22px Arial'
+  ctx.fillText('pl-draft.vercel.app', W / 2, H - 50)
+
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return s[(v - 20) % 10] || s[v] || s[0]
+}
 
 function FormDot({ result }) {
   const cls = result === 'W' ? 'bg-green-500' : result === 'D' ? 'bg-yellow-400' : 'bg-red-500'
@@ -48,18 +141,53 @@ function TableRow({ team }) {
   )
 }
 
-export default function ResultsView({ seasonResult, squad, onRestart }) {
+export default function ResultsView({ seasonResult, squad, difficulty = 'normal', onRestart }) {
+  const [sharing, setSharing] = useState(false)
+
   if (!seasonResult) return null
 
   const { table, ourStats } = seasonResult
   const verdict = getSeasonVerdict(ourStats)
   const form5 = (ourStats?.form ?? []).slice(-5)
 
+  const handleShare = async () => {
+    setSharing(true)
+    try {
+      const blob = await drawScoreCard(verdict, ourStats, squad, difficulty)
+      if (!blob) return
+      const file = new File([blob], 'pl-draft-result.png', { type: 'image/png' })
+      const shareData = {
+        files: [file],
+        title: 'PL Draft',
+        text: `${verdict.emoji} ${verdict.tier} — ${ourStats.pts} pts in PL Draft!`,
+      }
+      if (navigator.canShare?.(shareData)) {
+        await navigator.share(shareData)
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'pl-draft-result.png'
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    } catch (e) {
+      // user cancelled share or it failed — no action needed
+    } finally {
+      setSharing(false)
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-8">
       {/* Verdict */}
       <div className="text-center fade-in-up">
         <div className="text-5xl mb-3">{verdict.emoji}</div>
+        {verdict.tier && (
+          <div className="inline-block mb-2 text-[10px] font-black tracking-[0.25em] uppercase text-pl-yellow border border-pl-yellow/40 rounded-full px-3 py-1">
+            {verdict.tier}
+          </div>
+        )}
         <h2 className="text-2xl font-black text-white">{verdict.text}</h2>
         {ourStats && (
           <div className="mt-3 flex items-center justify-center gap-4 text-sm text-zinc-400">
@@ -135,6 +263,13 @@ export default function ResultsView({ seasonResult, squad, onRestart }) {
 
       {/* Actions */}
       <div className="flex gap-3 fade-in-up pb-8">
+        <button
+          onClick={handleShare}
+          disabled={sharing}
+          className="flex-1 bg-zinc-800 text-white font-black tracking-widest uppercase text-sm py-3 rounded-lg hover:bg-zinc-700 transition-all disabled:opacity-60"
+        >
+          {sharing ? 'Preparing…' : 'Share Result'}
+        </button>
         <button
           onClick={onRestart}
           className="flex-1 bg-pl-yellow text-zinc-950 font-black tracking-widest uppercase text-sm py-3 rounded-lg hover:brightness-110 transition-all"

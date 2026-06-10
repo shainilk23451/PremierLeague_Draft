@@ -96,12 +96,24 @@ function getResult(gf, ga) {
   return { result: 'D', pts: 1 }
 }
 
-export function simulateSeason(squad) {
+// Difficulty scales the strength of every AI club. Higher = tougher league.
+export const DIFFICULTIES = {
+  casual: { label: 'Casual', aiMultiplier: 0.93, hideStats: false, blurb: 'Forgiving league. Stats shown.' },
+  normal: { label: 'Normal', aiMultiplier: 1.0, hideStats: false, blurb: 'A balanced challenge. Stats shown.' },
+  elite:  { label: 'Elite',  aiMultiplier: 1.07, hideStats: true,  blurb: 'Brutal rivals. Player stats hidden.' },
+}
+
+export function simulateSeason(squad, difficulty = 'normal') {
   const ourRating = calculateTeamRating(squad)
+  const aiMul = (DIFFICULTIES[difficulty] ?? DIFFICULTIES.normal).aiMultiplier
 
   const allTeams = [
     { name: 'Dream Squad', abbr: 'YOU', season: '', achievement: '', attackRating: ourRating.attackRating, defenseRating: ourRating.defenseRating, isUs: true },
-    ...AI_TEAMS,
+    ...AI_TEAMS.map(t => ({
+      ...t,
+      attackRating: Math.min(99, t.attackRating * aiMul),
+      defenseRating: Math.min(99, t.defenseRating * aiMul),
+    })),
   ]
 
   const standings = allTeams.map(t => ({
@@ -164,16 +176,20 @@ export function simulateSeason(squad) {
   }
 }
 
+// Named result tiers, ranked from worst to best. Each season maps to exactly one.
 export function getSeasonVerdict(stats) {
-  if (!stats) return { emoji: '', text: 'No data' }
-  const { pts, position } = stats
-  if (position === 1 && pts >= 90) return { emoji: '🏆', text: 'CHAMPIONS! Record-breaking season!' }
-  if (position === 1) return { emoji: '🏆', text: 'PREMIER LEAGUE CHAMPIONS!' }
-  if (position === 2) return { emoji: '🥈', text: 'Runners-Up — Agonisingly close!' }
-  if (position === 3) return { emoji: '🥉', text: 'Third Place — Champions League football!' }
-  if (position <= 4) return { emoji: '✅', text: `${position}th — Champions League secured!` }
-  if (position <= 6) return { emoji: '🎯', text: `${position}th — Europa League football!` }
-  if (position <= 10) return { emoji: '😐', text: `${position}th — Mid-table finish.` }
-  if (position <= 17) return { emoji: '😬', text: `${position}th — Below expectations.` }
-  return { emoji: '🚨', text: `${position}th — RELEGATED!` }
+  if (!stats) return { tier: '', emoji: '', text: 'No data' }
+  const { pts, position, won, lost } = stats
+
+  // Legendary achievements take priority over raw league position
+  if (won === 38) return { tier: 'GOAT', emoji: '🐐', text: 'THE GOAT — Won all 38. Perfect season.' }
+  if (position === 1 && lost === 0) return { tier: 'INVINCIBLES', emoji: '🛡️', text: 'THE INVINCIBLES — Champions, unbeaten all season!' }
+  if (position === 1 && pts >= 100) return { tier: 'CENTURIONS', emoji: '💯', text: 'CENTURIONS — Champions with 100+ points!' }
+  if (position === 1) return { tier: 'CHAMPIONS', emoji: '🏆', text: 'PREMIER LEAGUE CHAMPIONS!' }
+  if (position === 2) return { tier: 'RUNNERS-UP', emoji: '🥈', text: 'Runners-Up — Agonisingly close!' }
+  if (position <= 4) return { tier: 'CHAMPIONS LEAGUE', emoji: '✅', text: `${position}th — Champions League football secured!` }
+  if (position <= 7) return { tier: 'EUROPA', emoji: '🎯', text: `${position}th — Europa League qualification!` }
+  if (position <= 14) return { tier: 'MID-TABLE', emoji: '😐', text: `${position}th — A solid mid-table finish.` }
+  if (position <= 17) return { tier: 'RELEGATION BATTLE', emoji: '😬', text: `${position}th — Survived a relegation scrap.` }
+  return { tier: 'RELEGATED', emoji: '🚨', text: `${position}th — RELEGATED!` }
 }

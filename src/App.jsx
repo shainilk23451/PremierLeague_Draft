@@ -5,7 +5,7 @@ import SimulationView from './components/SimulationView.jsx'
 import ResultsView from './components/ResultsView.jsx'
 import HowToPlayModal from './components/HowToPlayModal.jsx'
 import { emptySquad, pickRandomTeam, SLOT_COUNT, canPlaySlot } from './utils/draft.js'
-import { simulateSeason } from './utils/simulation.js'
+import { simulateSeason, DIFFICULTIES } from './utils/simulation.js'
 
 const TOTAL_ROUNDS = 18
 const SKIPS_ALLOWED = 2
@@ -23,8 +23,10 @@ export default function App() {
   const [sortKey, setSortKey] = useState('goals')
   const [liftedFromSlot, setLiftedFromSlot] = useState(null)
   const [swapFromSlot, setSwapFromSlot] = useState(null)
+  const [difficulty, setDifficulty] = useState('normal')
 
-  const startDraft = useCallback(() => {
+  const startDraft = useCallback((diff = 'normal') => {
+    setDifficulty(diff)
     const team = pickRandomTeam([])
     setCurrentTeam(team)
     setTeamsUsed(team ? [team.id] : [])
@@ -127,10 +129,10 @@ export default function App() {
     setPhase('simulating')
     // Run simulation asynchronously so UI updates first
     setTimeout(() => {
-      const result = simulateSeason(squad)
+      const result = simulateSeason(squad, difficulty)
       setSeasonResult(result)
     }, 100)
-  }, [squad])
+  }, [squad, difficulty])
 
   const onSimulationComplete = useCallback(() => {
     setPhase('results')
@@ -206,6 +208,7 @@ export default function App() {
           onSwapSelect={selectForSwap}
           onSimulate={simulate}
           isSquadFull={isSquadFull}
+          hideStats={DIFFICULTIES[difficulty].hideStats}
         />
       )}
 
@@ -221,6 +224,7 @@ export default function App() {
         <ResultsView
           seasonResult={seasonResult}
           squad={squad}
+          difficulty={difficulty}
           onRestart={restart}
         />
       )}

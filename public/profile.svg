@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </radialGradient>
+    <linearGradient id="ylw" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f4ff45"/>
+      <stop offset="100%" stop-color="#e8fa23"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Tile -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="4" y="4" width="504" height="504" rx="108" fill="none" stroke="#27272a" stroke-width="2"/>
+
+  <!-- Pitch motif: halfway line + centre circle -->
+  <g stroke="url(#ylw)" stroke-opacity="0.16" stroke-width="3" fill="none">
+    <line x1="56" y1="256" x2="456" y2="256"/>
+    <circle cx="256" cy="256" r="120"/>
+  </g>
+  <circle cx="256" cy="256" r="7" fill="url(#ylw)" fill-opacity="0.35"/>
+
+  <!-- Top label -->
+  <text x="256" y="150" text-anchor="middle"
+        font-family="Inter, Arial, sans-serif" font-weight="700"
+        font-size="26" letter-spacing="10" fill="#71717a">PREMIER LEAGUE</text>
+
+  <!-- Wordmark -->
+  <text x="256" y="290" text-anchor="middle"
+        font-family="Inter, Arial, sans-serif" font-weight="900"
+        font-size="190" letter-spacing="-6" fill="#ffffff">PL</text>
+
+  <!-- DRAFT pill -->
+  <rect x="146" y="338" width="220" height="58" rx="29" fill="url(#ylw)"/>
+  <text x="256" y="378" text-anchor="middle"
+        font-family="Inter, Arial, sans-serif" font-weight="900"
+        font-size="40" letter-spacing="8" fill="#09090b">DRAFT</text>
+</svg>

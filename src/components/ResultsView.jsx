@@ -1,9 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getSeasonVerdict, DIFFICULTIES } from '../utils/simulation.js'
 import { SLOT_LABELS } from '../utils/draft.js'
+import { recordResult } from '../utils/storage.js'
+
+const SITE_URL = 'https://pl-draft.vercel.app'
+
+// Tier accent colours for the score card / new-best flourish.
+const TIER_COLORS = {
+  GOAT: '#e8fa23', INVINCIBLES: '#e8fa23', CENTURIONS: '#e8fa23',
+  CHAMPIONS: '#e8fa23', 'RUNNERS-UP': '#cbd5e1', 'CHAMPIONS LEAGUE': '#60a5fa',
+  EUROPA: '#fb923c', 'MID-TABLE': '#a1a1aa', 'RELEGATION BATTLE': '#f87171',
+  RELEGATED: '#ef4444',
+}
 
 // Render a shareable square score card to a canvas and return it as a PNG blob.
-function drawScoreCard(verdict, ourStats, squad, difficulty) {
+function drawScoreCard(verdict, ourStats, squad, difficulty, showRatings) {
   const W = 1080, H = 1080
   const canvas = document.createElement('canvas')
   canvas.width = W
@@ -29,7 +40,8 @@ function drawScoreCard(verdict, ourStats, squad, difficulty) {
   ctx.font = '120px Arial'
   ctx.fillText(verdict.emoji || '', W / 2, 320)
 
-  ctx.fillStyle = '#e8fa23'
+  const accent = TIER_COLORS[verdict.tier] || '#e8fa23'
+  ctx.fillStyle = accent
   ctx.font = '900 64px Arial'
   ctx.fillText(verdict.tier || '', W / 2, 410)
 
@@ -47,7 +59,7 @@ function drawScoreCard(verdict, ourStats, squad, difficulty) {
     const colW = W / stats.length
     stats.forEach(([val, lbl], i) => {
       const x = colW * i + colW / 2
-      ctx.fillStyle = '#ffffff'
+      ctx.fillStyle = lbl === 'GD' ? (ourStats.gd >= 0 ? '#4ade80' : '#f87171') : '#ffffff'
       ctx.font = '900 52px Arial'
       ctx.fillText(val, x, 580)
       ctx.fillStyle = '#52525b'
@@ -78,6 +90,13 @@ function drawScoreCard(verdict, ourStats, squad, difficulty) {
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 22px Arial'
     ctx.fillText(p.name, x + 55, y)
+    if (showRatings) {
+      ctx.fillStyle = '#e8fa23'
+      ctx.font = '900 18px Arial'
+      ctx.textAlign = 'right'
+      ctx.fillText(String(p.rating), x + (W / 2 - 110), y)
+      ctx.textAlign = 'left'
+    }
   })
 
   ctx.textAlign = 'center'
@@ -141,19 +160,51 @@ function TableRow({ team }) {
   )
 }
 
-export default function ResultsView({ seasonResult, squad, difficulty = 'normal', onRestart }) {
+export default function ResultsView({ seasonResult, squad, difficulty = 'normal', showRatings = false, onRestart }) {
   const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [newBest, setNewBest] = useState(false)
+  const recordedRef = useRef(false)
+
+  const ourStats = seasonResult?.ourStats
+  const verdict = getSeasonVerdict(ourStats)
+
+  // Persist the result exactly once when this screen mounts with data.
+  useEffect(() => {
+    if (!ourStats || recordedRef.current) return
+    recordedRef.current = true
+    const { isNewBest } = recordResult(difficulty, ourStats, verdict)
+    setNewBest(isNewBest)
+  }, [ourStats, difficulty, verdict])
 
   if (!seasonResult) return null
 
-  const { table, ourStats } = seasonResult
-  const verdict = getSeasonVerdict(ourStats)
+  const { table } = seasonResult
   const form5 = (ourStats?.form ?? []).slice(-5)
+
+  const shareText = `${verdict.emoji} ${verdict.tier} — ${ourStats?.pts ?? 0} pts in PL Draft (${DIFFICULTIES[difficulty]?.label ?? 'Normal'}). Can you beat it?`
+  const encodedText = encodeURIComponent(shareText)
+  const encodedUrl = encodeURIComponent(SITE_URL)
+  const socialLinks = [
+    { label: 'X', href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}` },
+    { label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + SITE_URL)}` },
+    { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+  ]
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(`${shareText} ${SITE_URL}`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard blocked — no-op
+    }
+  }
 
   const handleShare = async () => {
     setSharing(true)
     try {
-      const blob = await drawScoreCard(verdict, ourStats, squad, difficulty)
+      const blob = await drawScoreCard(verdict, ourStats, squad, difficulty, showRatings)
       if (!blob) return
       const file = new File([blob], 'pl-draft-result.png', { type: 'image/png' })
       const shareData = {
@@ -182,6 +233,11 @@ export default function ResultsView({ seasonResult, squad, difficulty = 'normal'
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-8">
       {/* Verdict */}
       <div className="text-center fade-in-up">
+        {newBest && (
+          <div className="inline-flex items-center gap-1.5 mb-3 text-[10px] font-black tracking-[0.2em] uppercase text-zinc-950 bg-pl-yellow rounded-full px-3 py-1">
+            ★ New {DIFFICULTIES[difficulty]?.label ?? 'Normal'} best
+          </div>
+        )}
         <div className="text-5xl mb-3">{verdict.emoji}</div>
         {verdict.tier && (
           <div className="inline-block mb-2 text-[10px] font-black tracking-[0.25em] uppercase text-pl-yellow border border-pl-yellow/40 rounded-full px-3 py-1">
@@ -255,27 +311,56 @@ export default function ResultsView({ seasonResult, squad, difficulty = 'normal'
                 <span className="font-bold text-sm text-white">{player.name}</span>
                 <span className="ml-2 text-xs text-zinc-500">{player.teamName} {player.season}</span>
               </div>
-              <span className="text-[10px] font-bold text-zinc-600 uppercase">{SLOT_LABELS[i]}</span>
+              {showRatings && (
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-pl-yellow/15 text-pl-yellow tabular-nums">
+                  {player.rating}
+                </span>
+              )}
+              <span className="text-[10px] font-bold text-zinc-600 uppercase w-8 text-right">{SLOT_LABELS[i]}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 fade-in-up pb-8">
-        <button
-          onClick={handleShare}
-          disabled={sharing}
-          className="flex-1 bg-zinc-800 text-white font-black tracking-widest uppercase text-sm py-3 rounded-lg hover:bg-zinc-700 transition-all disabled:opacity-60"
-        >
-          {sharing ? 'Preparing…' : 'Share Result'}
-        </button>
-        <button
-          onClick={onRestart}
-          className="flex-1 bg-pl-yellow text-zinc-950 font-black tracking-widest uppercase text-sm py-3 rounded-lg hover:brightness-110 transition-all"
-        >
-          Draft Again
-        </button>
+      <div className="fade-in-up pb-8 space-y-3">
+        <div className="flex gap-3">
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            className="flex-1 bg-zinc-800 text-white font-black tracking-widest uppercase text-sm py-3 rounded-lg hover:bg-zinc-700 transition-all disabled:opacity-60"
+          >
+            {sharing ? 'Preparing…' : 'Share Card'}
+          </button>
+          <button
+            onClick={onRestart}
+            className="flex-1 bg-pl-yellow text-zinc-950 font-black tracking-widest uppercase text-sm py-3 rounded-lg hover:brightness-110 transition-all"
+          >
+            Draft Again
+          </button>
+        </div>
+
+        {/* Quick social share */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-zinc-600 mr-1">Share to</span>
+          {socialLinks.map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center text-[11px] font-bold uppercase tracking-wide py-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-white transition-colors"
+            >
+              {label}
+            </a>
+          ))}
+          <button
+            onClick={handleCopy}
+            className="flex-1 text-center text-[11px] font-bold uppercase tracking-wide py-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-white transition-colors"
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
       </div>
     </div>
   )

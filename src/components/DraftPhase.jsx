@@ -14,7 +14,7 @@ function posColor(pos) {
   return 'bg-red-500/20 text-red-400'
 }
 
-function PlayerRow({ player, isSelected, onSelect, hideStats }) {
+function PlayerRow({ player, isSelected, onSelect, hideStats, showRatings }) {
   return (
     <button
       onClick={() => onSelect(player)}
@@ -25,7 +25,16 @@ function PlayerRow({ player, isSelected, onSelect, hideStats }) {
       }`}
     >
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-sm leading-tight truncate">{player.name}</div>
+        <div className="flex items-center gap-2">
+          <div className="font-bold text-sm leading-tight truncate">{player.name}</div>
+          {showRatings && !hideStats && (
+            <span className={`flex-shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded tabular-nums ${
+              isSelected ? 'bg-black/20 text-zinc-950' : 'bg-pl-yellow/15 text-pl-yellow'
+            }`}>
+              {player.rating}
+            </span>
+          )}
+        </div>
         <div className="mt-0.5 flex items-center gap-1.5">
           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isSelected ? 'bg-black/20 text-zinc-950' : posColor(player.position)}`}>
             {player.subPosition}
@@ -87,7 +96,7 @@ export default function DraftPhase({
   skipsLeft, selectedPlayer, sortKey, onSortChange,
   onSkip, onSelectPlayer, onPlacePlayer, onLiftPlayer,
   swapFromSlot, onSwapSelect,
-  onSimulate, isSquadFull, hideStats,
+  onSimulate, isSquadFull, hideStats, showRatings,
 }) {
   const availablePlayers = useMemo(() => {
     if (!currentTeam) return []
@@ -112,6 +121,7 @@ export default function DraftPhase({
     { key: 'goals', label: 'Goals' },
     { key: 'assists', label: 'Assists' },
     { key: 'cs', label: 'CS' },
+    ...(showRatings ? [{ key: 'rating', label: 'Rating' }] : []),
   ]
 
   if (!currentTeam) return null
@@ -224,6 +234,7 @@ export default function DraftPhase({
                   isSelected={selectedPlayer?.id === player.id}
                   onSelect={onSelectPlayer}
                   hideStats={hideStats}
+                  showRatings={showRatings}
                 />
               ))}
             </div>

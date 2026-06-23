@@ -24,9 +24,11 @@ export default function App() {
   const [liftedFromSlot, setLiftedFromSlot] = useState(null)
   const [swapFromSlot, setSwapFromSlot] = useState(null)
   const [difficulty, setDifficulty] = useState('normal')
+  const [showRatings, setShowRatings] = useState(false)
 
-  const startDraft = useCallback((diff = 'normal') => {
+  const startDraft = useCallback((diff = 'normal', ratings = false) => {
     setDifficulty(diff)
+    setShowRatings(ratings)
     const team = pickRandomTeam([])
     setCurrentTeam(team)
     setTeamsUsed(team ? [team.id] : [])
@@ -168,6 +170,7 @@ export default function App() {
               onClick={restart}
               className="w-8 h-8 border border-zinc-700 rounded-md flex items-center justify-center hover:bg-zinc-800 transition-colors text-zinc-400"
               title="Restart"
+              aria-label="Restart game"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -179,6 +182,7 @@ export default function App() {
             onClick={() => setShowHowTo(true)}
             className="w-8 h-8 border border-zinc-700 rounded-md flex items-center justify-center hover:bg-zinc-800 transition-colors text-zinc-400 font-bold text-sm"
             title="How to play"
+            aria-label="How to play"
           >
             ?
           </button>
@@ -209,6 +213,7 @@ export default function App() {
           onSimulate={simulate}
           isSquadFull={isSquadFull}
           hideStats={DIFFICULTIES[difficulty].hideStats}
+          showRatings={showRatings && !DIFFICULTIES[difficulty].hideStats}
         />
       )}
 
@@ -225,6 +230,7 @@ export default function App() {
           seasonResult={seasonResult}
           squad={squad}
           difficulty={difficulty}
+          showRatings={showRatings}
           onRestart={restart}
         />
       )}

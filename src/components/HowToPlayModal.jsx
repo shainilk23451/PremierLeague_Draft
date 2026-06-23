@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 const SLIDES = [
   {
@@ -58,7 +58,8 @@ const SLIDES = [
     title: 'Share',
     content: (
       <p className="text-center text-base leading-relaxed text-zinc-300">
-        Share a screenshot of your final league table — especially if you become{' '}
+        Generate a shareable score card and post your result straight to{' '}
+        <strong className="text-white">X, WhatsApp or Facebook</strong> — especially if you become{' '}
         <strong className="text-pl-yellow">Premier League Champions!</strong>
       </p>
     ),
@@ -68,9 +69,32 @@ const SLIDES = [
 export default function HowToPlayModal({ onClose }) {
   const [slide, setSlide] = useState(0)
 
+  const prev = useCallback(() => setSlide(s => Math.max(0, s - 1)), [])
+  const next = useCallback(() => setSlide(s => Math.min(SLIDES.length - 1, s + 1)), [])
+
+  // Keyboard support: Esc closes, arrows navigate slides.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft') prev()
+      else if (e.key === 'ArrowRight') next()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose, prev, next])
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl fade-in-up">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="How to play"
+    >
+      <div
+        className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl fade-in-up"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-3">
           <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-zinc-500">
@@ -101,8 +125,9 @@ export default function HowToPlayModal({ onClose }) {
         {/* Footer nav */}
         <div className="flex items-center justify-between px-6 py-4">
           <button
-            onClick={() => setSlide(s => Math.max(0, s - 1))}
+            onClick={prev}
             disabled={slide === 0}
+            aria-label="Previous slide"
             className="w-9 h-9 border border-zinc-700 rounded-lg flex items-center justify-center disabled:opacity-30 hover:bg-zinc-800 transition-colors text-zinc-400"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -115,13 +140,15 @@ export default function HowToPlayModal({ onClose }) {
               <button
                 key={i}
                 onClick={() => setSlide(i)}
+                aria-label={`Go to slide ${i + 1}`}
                 className={`rounded-full transition-all ${i === slide ? 'w-5 h-2 bg-pl-yellow' : 'w-2 h-2 bg-zinc-700'}`}
               />
             ))}
           </div>
 
           <button
-            onClick={() => slide < SLIDES.length - 1 ? setSlide(s => s + 1) : onClose()}
+            onClick={() => slide < SLIDES.length - 1 ? next() : onClose()}
+            aria-label={slide < SLIDES.length - 1 ? 'Next slide' : 'Close'}
             className="w-9 h-9 border border-zinc-700 rounded-lg flex items-center justify-center hover:bg-zinc-800 transition-colors text-zinc-400"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
